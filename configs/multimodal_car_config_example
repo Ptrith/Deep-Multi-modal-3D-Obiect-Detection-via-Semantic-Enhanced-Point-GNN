@@ -1,0 +1,154 @@
+# Multi-Modal Point-GNN Configuration Example
+# This config enables PointPainting and semantic-aware GNN layers
+
+config = {
+    # Basic settings
+    'num_classes': 8,
+    'box_encoding_method': 'yaw',
+    'label_method': 'yaw',
+    
+    # Multi-modal settings
+    'multimodal_model_name': 'multimodal_point_gnn',
+    'num_semantic_classes': 19,
+    
+    # Input features (will be augmented with semantic features)
+    'input_features': 'irgb',  # intensity + RGB
+    
+    # Downsampling
+    'downsample_by_voxel_size': 0.05,
+    
+    # Graph generation
+    'graph_gen_method': 'graph_gen_v2',
+    'graph_gen_kwargs': {
+        'level_configs': [
+            {'graph_gen_method': 'fixed_radius_near_neighbors',
+             'radius': 0.2, 'max_neighbors': 32},
+            {'graph_gen_method': 'fixed_radius_near_neighbors',
+             'radius': 0.4, 'max_neighbors': 32},
+            {'graph_gen_method': 'fixed_radius_near_neighbors',
+             'radius': 0.8, 'max_neighbors': 32},
+        ]
+    },
+    'runtime_graph_gen_kwargs': {
+        'level_configs': [
+            {'graph_gen_method': 'fixed_radius_near_neighbors',
+             'radius': 0.2, 'max_neighbors': 32},
+            {'graph_gen_method': 'fixed_radius_near_neighbors',
+             'radius': 0.4, 'max_neighbors': 32},
+            {'graph_gen_method': 'fixed_radius_near_neighbors',
+             'radius': 0.8, 'max_neighbors': 32},
+        ]
+    },
+    
+    # Multi-modal model configuration
+    'multimodal_model_kwargs': {
+        'regularizer_type': 'l2',
+        'regularizer_kwargs': {'scale': 0.0001},
+        'use_semantic_consistency': True,
+        'semantic_weight': 1.0,
+        
+        'layer_configs': [
+            # Layer 0: Initial pooling with semantic features
+            {'type': 'semantic_point_set_pooling',
+             'scope': 'level_0_pooling',
+             'graph_level': 0,
+             'kwargs': {
+                 'point_MLP_depth_list': [64, 64, 128],
+                 'output_MLP_depth_list': [128, 128],
+                 'point_MLP_normalization_type': 'fused_BN_center',
+                 'output_MLP_normalization_type': 'fused_BN_center',
+                 'point_MLP_activation_type': 'ReLU',
+                 'output_MLP_activation_type': 'ReLU',
+             }},
+            
+            # Layer 1: Semantic-aware GNN
+            {'type': 'semantic_graph_auto_center_net',
+             'scope': 'level_1_graph_0',
+             'graph_level': 1,
+             'kwargs': {
+                 'edge_MLP_depth_list': [128, 128, 256],
+                 'update_MLP_depth_list': [256, 256],
+                 'edge_MLP_normalization_type': 'fused_BN_center',
+                 'update_MLP_normalization_type': 'fused_BN_center',
+                 'edge_MLP_activation_type': 'ReLU',
+                 'update_MLP_activation_type': 'ReLU',
+                 'auto_offset': True,
+                 'auto_offset_MLP_depth_list': [3],
+                 'use_semantic_consistency': True,
+                 'semantic_weight': 1.0,
+             }},
+            
+            # Layer 2: Another semantic-aware GNN
+            {'type': 'semantic_graph_auto_center_net',
+             'scope': 'level_1_graph_1',
+             'graph_level': 1,
+             'kwargs': {
+                 'edge_MLP_depth_list': [256, 256, 256],
+                 'update_MLP_depth_list': [256, 256],
+                 'edge_MLP_normalization_type': 'fused_BN_center',
+                 'update_MLP_normalization_type': 'fused_BN_center',
+                 'edge_MLP_activation_type': 'ReLU',
+                 'update_MLP_activation_type': 'ReLU',
+                 'auto_offset': True,
+                 'auto_offset_MLP_depth_list': [3],
+                 'use_semantic_consistency': True,
+                 'semantic_weight': 1.0,
+             }},
+            
+            # Layer 3: Pooling to coarser level
+            {'type': 'semantic_point_set_pooling',
+             'scope': 'level_2_pooling',
+             'graph_level': 1,
+             'kwargs': {
+                 'point_MLP_depth_list': [256, 256, 256],
+                 'output_MLP_depth_list': [256, 256],
+                 'point_MLP_normalization_type': 'fused_BN_center',
+                 'output_MLP_normalization_type': 'fused_BN_center',
+                 'point_MLP_activation_type': 'ReLU',
+                 'output_MLP_activation_type': 'ReLU',
+             }},
+            
+            # Layer 4: Semantic-aware GNN at coarse level
+            {'type': 'semantic_graph_auto_center_net',
+             'scope': 'level_2_graph',
+             'graph_level': 2,
+             'kwargs': {
+                 'edge_MLP_depth_list': [256, 256, 512],
+                 'update_MLP_depth_list': [512, 512],
+                 'edge_MLP_normalization_type': 'fused_BN_center',
+                 'update_MLP_normalization_type': 'fused_BN_center',
+                 'edge_MLP_activation_type': 'ReLU',
+                 'update_MLP_activation_type': 'ReLU',
+                 'auto_offset': True,
+                 'auto_offset_MLP_depth_list': [3],
+                 'use_semantic_consistency': True,
+                 'semantic_weight': 1.0,
+             }},
+            
+            # Final prediction layer
+            {'type': 'classaware_predictor_128',
+             'scope': 'predictor',
+             'graph_level': 2,
+             'kwargs': {
+                 'normalization_type': 'fused_BN_center',
+                 'activation_type': 'ReLU',
+             }},
+        ]
+    },
+    
+    # Loss configuration
+    'loss': {
+        'cls_loss_type': 'focal_sigmoid',
+        'cls_loss_kwargs': {'alpha': 0.25, 'gamma': 2.0},
+        'loc_loss_type': 'huber_loss',
+        'loc_loss_kwargs': {},
+        'loc_loss_weight': 2.0,
+        'cls_loss_weight': 1.0,
+    },
+    
+    # NMS configuration
+    'nms_overlapped_thres': 0.1,
+    'use_semantic_nms': True,
+    'semantic_rescore_weight': 0.3,
+}
+

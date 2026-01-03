@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Data files (too large for GitHub)
+*.bin
+*.pcd
+*.ply
+*.zip
+dataset/kitti/
+*.data-*
+*.index
+*.meta
+
+# Checkpoints (large files)
+checkpoints/*/model-*.data-*
+checkpoints/*/model-*.index
+checkpoints/*/model-*.meta
+
+# Results
+results_*/
+eval_*/
+*.txt (except splits and configs)
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.bak
+
